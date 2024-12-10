@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  db:
+   image: postgres:13
+   environment:
+    POSTGRES_DB: wordsmith
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+   volumes:
+     - ./db/words.sql:/docker-entrypoint-initdb.d/words.sql
+   networks:
+    - wordsmith_network
+   healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U postgres"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+
+  words:
+    build: ./words
+    depends_on:
+      - db
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/wordsmith
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+    ports:
+      - "8080:8080"
+    networks:
+      - wordsmith_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  web:
+    build: ./web
+    depends_on:
+      - words
+    ports:
+      - "80:80"
+    networks:
+      - wordsmith_network
+
+networks:
+  wordsmith_network:
+    driver: bridge
